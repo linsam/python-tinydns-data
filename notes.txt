@@ -1,0 +1,152 @@
+xxx name
+16  type
+16  class
+32  ttl
+16  length
+xxx data
+
+
+
+types:
+1   A
+2   NS
+5   CNAME
+6   SOA
+11  WKS
+12  PTR
+13  HINFO
+15  MX
+16  TXT
+28  AAAA
+
+
+classes
+1   IN (Internet)
+2   CSNET
+3   CHAOS
+4   HS
+
+
+
+Types
+=====
+
+CNAME: data is nust the domain name that is canonical
+
+HINFO: string of CPU data, string of OS data. See RFC1010 for standard values (1010 says limit is 40 characters, uppercase letters, numbers, and hyphen and slash only. As the list was established in 1987, there is no option for Linux nor Windows, but there are several UNIVAC, VAX, SUN, and an MSDOS in there. Probably, this is very unuseful these days.
+
+MX: 16bit preference, string domain name
+
+NS: data is just the domain name (format same as CNAME)
+
+PTR: just like CNAME (but no special processing)
+
+SOA: name of primary server (MNAME), mailbox in domain format (RNAME), 32bit serial number, 32bit refresh interval, 32bit retry interval, 32bit exiration limit time, zone TTL (formerlly used as the minimum TTL of every record in zone, now it is the TTL of NXDOMAIN responses (and maybe NODATA responses?))
+
+TXT: one or more character strings
+
+A: 32bit address
+
+WKS: 32bit address, 8bit IP protocol number, bitmap of ports (Probably not useful these days; hosts just try the connection, and the protocol is pretty generic. That is, the protocol might be 6 meaning "TCP", not the higher level stuff like HTTP or SMTP, they assume the higher level is based on standard port numbers) (should use SRV records instead)
+
+
+
+tinydns actual format
+=====================
+
+ignore trailing whitespace (tab, space, end-of-line)
+skip emtpy lines, or lines starting with '#' or '-'
+lines are read in as a number of fields, up to NUMFIELDS = 15, where fields are separated by ':'
+Every record ends with a TTL (time to live), a TTD (time to die (if TTL is 0) or start (positive ttl), and 2 character location for split-horizon.
+
+the first character of the line denotes the type:
+ % - location. Used subsequently for split-horizon stuffs.
+    field 0: 2 byte location name
+    field 1: IP prefix used to trigger the loc name. For example: 192.168.0 would work for 192.168.0.0/24
+             can only handle /24, /16, and /8 networks.
+             Parser note: each number between decimal points is parsed as an unsigned long and then truncated to 8bits, so 257 becomes 1 for example. The parser allows arbitrarily many dots, so for example '1.2.3.4.5.6.7' is valid for this field and will be put into the database, but of course, the dns server would never match it. Does offer a possibility for split horizon with ipv6, but as far as I know, no one ever did anything like that.
+
+ Z - Complete SOA record.
+    field 0: domain name
+    field 1: target domain name (name of "primary" authoritative server)
+    field 2: authoritative email as domain name
+    field 3: serial number (omit to use datestamp of file)
+    field 4: refresh time (omit to use default = 16384 == 4h 33m 4s)
+    field 5: retry time (omit to use default = 2048 == 34m 8s)
+    field 6: expire time (omit to use default = 1048576 == 12d 3h 16m 16s)
+    field 7: min/TTL for NXDOMAIN (omit to use default 2560 == 42m 40s)
+    field 8: TTL
+    field 9: TTD
+    field 10: Loc
+ & - NS record, adds A record
+    field 0: domain name
+    field 1: ipv4 address, dotted decimal (omit to skip making an A record)
+    field 2: target domain name. (omit to autogenerate one as X.ns.DOMAIN_NAME)
+    field 3: TTL
+    field 4: TTD
+    field 5: Loc
+ . - Simple SOA record. Same format as &. Adds an NS and A record as well
+ + - A record
+    field 0: domain name
+    field 1: ipv4 address, dotted decimal
+    field 2: TTL
+    field 3: TTD
+    field 4: Loc
+ = - A record. Same format as +. Adds a PTR in the reverse zone as well. (in-addr.arpa)
+ 3 - AAAA record
+    field 0: domain name
+    field 1: 16 byte IPv6 address represented by 32 characters hex
+    field 2: TTL
+    field 3: TTD
+    field 4: Loc
+ 6 - AAAA record, same format as 3. Adds PTR in reverse zones as well (ip6.arpa and ip6.int)
+ @ - MX record. Adds A record as well
+    field 0: domain name
+    field 1: ipv4 address, dotted decimal (omit to skip making an A record)
+    field 2: target domain name
+    field 3: priority, as integer
+    field 4: TTL
+    field 5: TTD
+    field 6: Loc
+ ^ - PTR record
+    field 0: domain name
+    field 1: target domain name
+    field 2: TTL
+    field 3: TTD
+    field 4: Loc
+ C - CNAME record. Same format as PTR
+ ' - TXT record, automatically split at 128 byte boundary (or 127?)
+    field 0: domain name
+    field 1: text data, bytes may be escaped with \ and a 3 digit octal number
+    field 2: TTL
+    field 3: TTD
+    field 4: Loc
+ : - Raw record, may not contain an AXFR, SOA, 0, NS, CNAME, PTR, nor MX record
+    field 0: domain name
+    field 1: record type
+    field 2: data, processed like TXT (backslash escape bytes)
+    field 3: TTL
+    field 4: TTD
+    field 5: Loc
+ 
+To do fancy things like hidden primary but still report the primary, use a Z record for the SOA, then & records for the NS that are "visible" (not hidden). Even though & is usually for delegation, it isn't when there is an SOA.
+
+A fun excersize: What to do if a subdomain is a zone (that is, it has an SOA). Does the parent and subdomain both share the same NS records?
+
+
+CDB format
+==========
+
+there are 2 kinds of keys. Keys that start with '\0' '%' are location keys. After the percent sign are the bytes of the bytes of the IP prefix. The value is the 2 byte location identifier
+Otherwise, keys are domain names in DNS label format (that is LV (length+value) for each label in the name, ending with the 0 length label (root). The value is as follows:
+
+  16bit big endian type (e.g. 1 = A, 16 = TXT, 28 = AAAA)
+  1 byte, '=' or '>'. If '=', this is a general record, if '>', next 2 bytes are location code
+  2 bytes (optional): location code (only if previous byte is '>')
+  32bit big endian TTL value
+  64bit TTD value (probably big endian)
+  n byte raw Resource Record data
+
+records in the CDB are added in the order of the source file. Duplicates are allowed in the original. This can be annoying if you don't know what you are doing, but possibly useful for unbalanced round-robin designs.
+
+
