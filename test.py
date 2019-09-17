@@ -77,7 +77,13 @@ def overlay(given, defaults):
 
 def make_record(name, type_, loc, ttl, ttd, data):
     key = labels_to_dns(name_to_labels(name))
-    value = u16_to_bytes(type_) + b'=' + u32_to_bytes(ttl) + u64_to_bytes(ttd) + data
+    if loc is None:
+        value = u16_to_bytes(type_) + b'=' + u32_to_bytes(ttl) + u64_to_bytes(ttd) + data
+    else:
+        loc = loc.encode('ascii')
+        if len(loc) != 2:
+            raise Exception("Bad loc")
+        value = u16_to_bytes(type_) + b'>' + loc + u32_to_bytes(ttl) + u64_to_bytes(ttd) + data
     klen = len(key)
     vlen = len(value)
     record = "+{},{}:".format(klen,vlen).encode('ascii') + key + b'->' + value + bytes((0x0a,))
@@ -98,8 +104,9 @@ with open("data") as data:
             address = fields[1]
             ttl = int(fields[2])
             ttd = int(fields[3],16)
+            loc = fields[4]
             data = u32_to_bytes(ipv4_to_u32(address))
-            out.write(make_record(name, RR_TYPE_A, None, ttl, ttd, data))
+            out.write(make_record(name, RR_TYPE_A, loc, ttl, ttd, data))
 
 
 # Finally, after the last record is an extra newline
