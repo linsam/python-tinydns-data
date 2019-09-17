@@ -64,13 +64,15 @@ def labels_to_dns(labels):
     res.append(bytes([0])) # NULL aka root label
     return b''.join(res)
 
-key = labels_to_dns(name_to_labels(name))
-value = u16_to_bytes(RR_TYPE_A) + b'=' + u32_to_bytes(ttl) + u64_to_bytes(ttd) + u32_to_bytes(ipv4_to_u32(address))
-klen = len(key)
-vlen = len(value)
-record = "+{},{}:".format(klen,vlen).encode('ascii') + key + b'->' + value + bytes((0x0a,))
-#print(record)
-out.write(record)
+def make_record(name, type_, loc, ttl, ttd, data):
+    key = labels_to_dns(name_to_labels(name))
+    value = u16_to_bytes(type_) + b'=' + u32_to_bytes(ttl) + u64_to_bytes(ttd) + data
+    klen = len(key)
+    vlen = len(value)
+    record = "+{},{}:".format(klen,vlen).encode('ascii') + key + b'->' + value + bytes((0x0a,))
+    return record
+
+out.write(make_record(name, RR_TYPE_A, None, ttl, ttd, u32_to_bytes(ipv4_to_u32(address))))
 
 # Finally, after the last record is an extra newline
 out.write(b'\n')
