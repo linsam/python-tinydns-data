@@ -81,7 +81,7 @@ the first character of the line denotes the type:
  & - NS record, adds A record
     field 0: domain name
     field 1: ipv4 address, dotted decimal (omit to skip making an A record)
-    field 2: target domain name. (omit to autogenerate one as X.ns.DOMAIN_NAME)
+    field 2: target domain name. (omit to autogenerate one as ns.DOMAIN_NAME, give a name without a dot to generate name.ns.DOMAIN_NAME)
     field 3: TTL
     field 4: TTD
     field 5: Loc
