@@ -2,12 +2,6 @@
 # This program makes some hard-coded output in the style of cdb-dump. It
 # should be piped directly to cdbmake or cdb
 
-# first up, an ipv4 record
-name = "test.example.com"
-ttl = 86400
-ttd = 0
-address = "192.168.1.42"
-
 import sys
 out = sys.stdout.buffer
 
@@ -64,6 +58,23 @@ def labels_to_dns(labels):
     res.append(bytes([0])) # NULL aka root label
     return b''.join(res)
 
+def overlay(given, defaults):
+    """Pull elements from given until we run out, then use defaults
+    also, use defaults if an element in given is empty (that is, None or '')
+    """
+    l1 = len(given)
+    l2 = len(defaults)
+    rem = l2 - l1
+    res = []
+    for i in range(min(l1,l2)):
+        if given[i] in [None, '']:
+            res.append(defaults[i])
+        else:
+            res.append(given[i])
+    if l1 < l2:
+        res.extend(defaults[l2 - rem:])
+    return res
+
 def make_record(name, type_, loc, ttl, ttd, data):
     key = labels_to_dns(name_to_labels(name))
     value = u16_to_bytes(type_) + b'=' + u32_to_bytes(ttl) + u64_to_bytes(ttd) + data
@@ -72,7 +83,24 @@ def make_record(name, type_, loc, ttl, ttd, data):
     record = "+{},{}:".format(klen,vlen).encode('ascii') + key + b'->' + value + bytes((0x0a,))
     return record
 
-out.write(make_record(name, RR_TYPE_A, None, ttl, ttd, u32_to_bytes(ipv4_to_u32(address))))
+with open("data") as data:
+    for line in data:
+        line = line.rstrip()
+        if len(line) == 0 or line[0] == '#':
+            continue
+        rtype = line[0]
+        line = line[1:]
+        if rtype == '+':
+            defaults = [None, None, "86400", "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+            name = fields[0]
+            address = fields[1]
+            ttl = int(fields[2])
+            ttd = int(fields[3],16)
+            data = u32_to_bytes(ipv4_to_u32(address))
+            out.write(make_record(name, RR_TYPE_A, None, ttl, ttd, data))
+
 
 # Finally, after the last record is an extra newline
 out.write(b'\n')
