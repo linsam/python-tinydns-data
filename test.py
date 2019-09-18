@@ -348,10 +348,33 @@ with open("data") as data:
             data = deescape_text(text)
             out.write(make_record(name, rrtype, loc, ttl, ttd, data))
         elif rtype == '%':
-            raise Exception("% records are TBD")
+            defaults = [None, ""]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            prefix = fields[1]
+
+            name = name.encode('ascii')
+            if len(name) != 2:
+                raise Exception("Location must be 2 characters only (got {})".format(name))
+
+            parts = prefix.split('.')
+            if len(parts) > 4:
+                raise Exception("Malformed location IPv4 prefix {}".format(prefix))
+            prefix_bytes = b''
+            for part in parts:
+                prefix_bytes += bytes([int(part)])
+            key = b'\0%' + prefix_bytes
+            value = name
+            klen = len(key)
+            vlen = len(value)
+            record = "+{},{}:".format(klen,vlen).encode('ascii') + key + b'->' + value + bytes((0x0a,))
+            out.write(record)
+
+
         else:
             raise Exception("Unknown record type '{}'".format(rtype))
-
 
 # Finally, after the last record is an extra newline
 out.write(b'\n')
