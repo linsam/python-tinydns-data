@@ -19,6 +19,10 @@ types:
 16  TXT
 28  AAAA
 
+pseudo types:
+252 AXFR
+255 * (ANY)
+
 
 classes
 1   IN (Internet)

@@ -20,6 +20,7 @@ RR_TYPE_PTR = 12
 RR_TYPE_MX = 15
 RR_TYPE_TXT = 16
 RR_TYPE_AAAA = 28
+RR_TYPE_AXFR = 252
 
 def ipv4_to_u32(ipv4):
     parts = ipv4.split('.')
@@ -325,6 +326,27 @@ with open("data") as data:
                 text = text[127:]
             data = labels_to_dns(strlist)[:-1] # chop off the trailing NULL label, shouldn't be in TXT records
             out.write(make_record(name, RR_TYPE_TXT, loc, ttl, ttd, data))
+        elif rtype == ":":
+            # raw record
+
+            defaults = [None, None, "", default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            rrtype = int(fields[1])
+            text = fields[2]
+            ttl = int(fields[3])
+            ttd = int(fields[4])
+            loc = fields[5]
+
+            if rrtype in [RR_TYPE_AXFR, RR_TYPE_SOA, RR_TYPE_NS, RR_TYPE_CNAME, RR_TYPE_PTR, RR_TYPE_MX, 0]:
+                # Note: I don't see a good reason why these are disallowed,
+                # but they are in DJB's documentation and implementation
+                raise Exception("RR type {} disallowed".format(rrtype))
+
+            data = deescape_text(text)
+            out.write(make_record(name, rrtype, loc, ttl, ttd, data))
         elif rtype == '%':
             raise Exception("% records are TBD")
         else:
