@@ -252,6 +252,35 @@ with open("data") as data:
                 # A record
                 data = u32_to_bytes(ipv4_to_u32(address))
                 out.write(make_record(server, RR_TYPE_A, loc, ttl, ttd, data))
+        elif rtype == '@':
+            # MX record
+
+            defaults = [None, "", "", "0", default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            address = fields[1]
+            server = fields[2]
+            priority = int(fields[3])
+            ttl = int(fields[4])
+            ttd = int(fields[5])
+            loc = fields[6]
+
+            if server == "":
+                server = "mx." + name
+            elif not '.' in server:
+                server = server + ".mx." + name
+
+
+            lserver = labels_to_dns(name_to_labels(server))
+            # MX record
+            data = u16_to_bytes(priority) + lserver
+            out.write(make_record(name, RR_TYPE_MX, loc, ttl, ttd, data))
+            if address != "":
+                # A record
+                data = u32_to_bytes(ipv4_to_u32(address))
+                out.write(make_record(server, RR_TYPE_A, loc, ttl, ttd, data))
         elif rtype == '%':
             raise Exception("% records are TBD")
         else:
