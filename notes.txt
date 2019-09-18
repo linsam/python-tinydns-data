@@ -115,7 +115,7 @@ the first character of the line denotes the type:
     field 3: TTD
     field 4: Loc
  C - CNAME record. Same format as PTR
- ' - TXT record, automatically split at 128 byte boundary (or 127?)
+ ' - TXT record, automatically split at 127 byte boundary
     field 0: domain name
     field 1: text data, bytes may be escaped with \ and a 3 digit octal number
     field 2: TTL

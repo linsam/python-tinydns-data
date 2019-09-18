@@ -62,13 +62,38 @@ def labels_to_dns(labels):
     # TODO: Handle unicde to punicode or whatever
     res = []
     for part in labels:
-        p = part.encode('ascii')
+        if isinstance(part, str):
+            p = part.encode('ascii')
+        else:
+            p = part
         l = len(part)
         if l == 0 or l > 255:
             raise Exception("bad label length {}".format(l))
         res.append(bytes([l]) + p)
     res.append(bytes([0])) # NULL aka root label
     return b''.join(res)
+
+def deescape_text(text):
+    """Given text with escaped octal data, convert the octal data to equivalent bytes.
+    For example:
+        "v=spf1 ip4\\072198.51.100.33/29" -> "v=spf1 ip4:198.51.100.33/29"
+    Assumes the text is ASCII
+    """
+    # Note: The \\ shown above is a single '\', it's escaped here so it shows
+    # correctly in printed docstrings.
+    # TODO: Support utf8? I haven't found anything indicating that text
+    # records must be 7-bit safe, or ascii instead of binary.
+    text = text.encode('ascii')
+    res = b''
+    while text != b'':
+        if not text[:1] == b'\\':
+            res += text[:1]
+            text = text[1:]
+        else:
+            num = int(text[1:4], 8)
+            text = text[4:]
+            res += bytes([num])
+    return res
 
 def overlay(given, defaults):
     """Pull elements from given until we run out, then use defaults
@@ -272,7 +297,6 @@ with open("data") as data:
             elif not '.' in server:
                 server = server + ".mx." + name
 
-
             lserver = labels_to_dns(name_to_labels(server))
             # MX record
             data = u16_to_bytes(priority) + lserver
@@ -281,6 +305,26 @@ with open("data") as data:
                 # A record
                 data = u32_to_bytes(ipv4_to_u32(address))
                 out.write(make_record(server, RR_TYPE_A, loc, ttl, ttd, data))
+        elif rtype == "'":
+            # TXT record
+
+            defaults = [None, "", default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            text = fields[1]
+            ttl = int(fields[2])
+            ttd = int(fields[3])
+            loc = fields[4]
+
+            text = deescape_text(text)
+            strlist = []
+            while len(text):
+                strlist.append(text[:127])
+                text = text[127:]
+            data = labels_to_dns(strlist)[:-1] # chop off the trailing NULL label, shouldn't be in TXT records
+            out.write(make_record(name, RR_TYPE_TXT, loc, ttl, ttd, data))
         elif rtype == '%':
             raise Exception("% records are TBD")
         else:
