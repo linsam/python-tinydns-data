@@ -121,9 +121,50 @@ with open("data") as data:
             loc = fields[4]
             data = u32_to_bytes(ipv4_to_u32(address))
             out.write(make_record(name, RR_TYPE_A, loc, ttl, ttd, data))
+        if rtype == '=':
+            # Address
+            defaults = [None, None, default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+            name = fields[0]
+            address = fields[1]
+            ttl = int(fields[2])
+            ttd = int(fields[3],16)
+            loc = fields[4]
+            # First, the A record
+            data = u32_to_bytes(ipv4_to_u32(address))
+            out.write(make_record(name, RR_TYPE_A, loc, ttl, ttd, data))
+            # Next, the PTR record
+            rname = ".".join(list(reversed(address.split('.'))) + ['in-addr','arpa'])
+            data = labels_to_dns(name_to_labels(name))
+            out.write(make_record(rname, RR_TYPE_PTR, loc, ttl, ttd, data))
         elif rtype == '-':
             # Disabled A record
             continue
+        elif rtype == '^':
+            # PTR
+            defaults = [None, None, default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+            name = fields[0]
+            destname = fields[1]
+            ttl = int(fields[2])
+            ttd = int(fields[3],16)
+            loc = fields[4]
+            data = labels_to_dns(name_to_labels(destname))
+            out.write(make_record(name, RR_TYPE_PTR, loc, ttl, ttd, data))
+        elif rtype == 'C':
+            # CNAME (like PTR)
+            defaults = [None, None, default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+            name = fields[0]
+            destname = fields[1]
+            ttl = int(fields[2])
+            ttd = int(fields[3],16)
+            loc = fields[4]
+            data = labels_to_dns(name_to_labels(destname))
+            out.write(make_record(name, RR_TYPE_CNAME, loc, ttl, ttd, data))
         elif rtype == 'Z':
             # Zone (SOA)
 
@@ -170,6 +211,45 @@ with open("data") as data:
             data = labels_to_dns(name_to_labels(server))
             out.write(make_record(name, RR_TYPE_NS, loc, ttl, ttd, data))
             if address != "":
+                data = u32_to_bytes(ipv4_to_u32(address))
+                out.write(make_record(server, RR_TYPE_A, loc, ttl, ttd, data))
+        elif rtype == '.':
+            # Simple SOA. Same format as &
+            # Note: default TTL for NS is 3 days
+            defaults = [None, "", "", "259200", "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            address = fields[1]
+            server = fields[2]
+            ttl = int(fields[3])
+            ttd = int(fields[4],16)
+            loc = fields[5]
+
+            if server == "":
+                server = "ns." + name
+            elif not '.' in server:
+                server = server + ".ns." + name
+            hostmaster = "hostmaster." + name
+
+            serial = int(timestr)
+            refresh = 0x4000
+            retry = 0x800
+            expire = 0x100000
+            minttl = 0xa00
+            primary = labels_to_dns(name_to_labels(server))
+            hostmaster = labels_to_dns(name_to_labels(hostmaster))
+            # SOA record. Note that original tinydns-data forces TTL of SOA to
+            # 2560 no matter what here. If you want custom TTL for SOA, you
+            # need a Z record.
+            data = primary + hostmaster + u32_to_bytes(serial) + u32_to_bytes(refresh) + u32_to_bytes(retry) + u32_to_bytes(expire) + u32_to_bytes(minttl)
+            out.write(make_record(name, RR_TYPE_SOA, loc, 2560, ttd, data))
+            # NS record
+            data = labels_to_dns(name_to_labels(server))
+            out.write(make_record(name, RR_TYPE_NS, loc, ttl, ttd, data))
+            if address != "":
+                # A record
                 data = u32_to_bytes(ipv4_to_u32(address))
                 out.write(make_record(server, RR_TYPE_A, loc, ttl, ttd, data))
         elif rtype == '%':
