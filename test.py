@@ -147,7 +147,7 @@ with open("data") as data:
             loc = fields[4]
             data = u32_to_bytes(ipv4_to_u32(address))
             out.write(make_record(name, RR_TYPE_A, loc, ttl, ttd, data))
-        if rtype == '=':
+        elif rtype == '=':
             # Address
             defaults = [None, None, default_TTL, "0", None]
             givenfields = line.split(':')
