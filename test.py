@@ -5,6 +5,7 @@
 import sys
 import time
 import os
+import codecs
 
 out = sys.stdout.buffer
 
@@ -147,6 +148,20 @@ with open("data") as data:
             loc = fields[4]
             data = u32_to_bytes(ipv4_to_u32(address))
             out.write(make_record(name, RR_TYPE_A, loc, ttl, ttd, data))
+        elif rtype == '3':
+            # IPv6 address
+            defaults = [None, None, default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+            name = fields[0]
+            address = fields[1]
+            ttl = int(fields[2])
+            ttd = int(fields[3],16)
+            loc = fields[4]
+            data = codecs.decode(address, 'hex')
+            if len(data) != 16:
+                raise Exception("hex isn't 16 bytes IPv6 address")
+            out.write(make_record(name, RR_TYPE_AAAA, loc, ttl, ttd, data))
         elif rtype == '=':
             # Address
             defaults = [None, None, default_TTL, "0", None]
@@ -163,6 +178,31 @@ with open("data") as data:
             # Next, the PTR record
             rname = ".".join(list(reversed(address.split('.'))) + ['in-addr','arpa'])
             data = labels_to_dns(name_to_labels(name))
+            out.write(make_record(rname, RR_TYPE_PTR, loc, ttl, ttd, data))
+        elif rtype == '6':
+            # IPv6 address with PTR
+            defaults = [None, None, default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+            name = fields[0]
+            address = fields[1]
+            ttl = int(fields[2])
+            ttd = int(fields[3],16)
+            loc = fields[4]
+            # AAAA record
+            data = codecs.decode(address, 'hex')
+            if len(data) != 16:
+                raise Exception("hex isn't 16 bytes IPv6 address")
+            out.write(make_record(name, RR_TYPE_AAAA, loc, ttl, ttd, data))
+
+            raddress = '.'.join(reversed(list(address.lower())))
+            data = labels_to_dns(name_to_labels(name))
+            # PTR record for ip6.arpa, to be compatible with old stuff? The
+            # dbndns package does this, presumably from the fefe patch.
+            rname = raddress + '.ip6.arpa'
+            out.write(make_record(rname, RR_TYPE_PTR, loc, ttl, ttd, data))
+            # PTR record for ip6.int, the normal one
+            rname = raddress + '.ip6.int'
             out.write(make_record(rname, RR_TYPE_PTR, loc, ttl, ttd, data))
         elif rtype == '-':
             # Disabled A record
