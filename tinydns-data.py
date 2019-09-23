@@ -395,11 +395,36 @@ with open("data") as data:
             lserver = labels_to_dns(name_to_labels(server))
             data = u16_to_bytes(priority) + u16_to_bytes(weight) + u16_to_bytes(port) + lserver
             out.write(make_record(name, RR_TYPE_SRV, loc, ttl, ttd, data))
-            # TODO: support IPv6?
             if address != "":
+                # TODO: support IPv6?
                 # A record
                 data = u32_to_bytes(ipv4_to_u32(address))
                 out.write(make_record(server, RR_TYPE_A, loc, ttl, ttd, data))
+        elif rtype == "N":
+            # NAPTR record
+
+            defaults = [None, "", "0", "", "", "", "", default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            order = int(fields[1])
+            preference = int(fields[2])
+            flags = fields[3]
+            service = fields[4]
+            regexp = fields[5]
+            replacement = fields[6]
+            ttl = int(fields[7])
+            ttd = int(fields[8])
+            loc = fields[9]
+
+            flags = labels_to_dns([deescape_text(flags)])[:-1]
+            service = labels_to_dns([deescape_text(service)])[:-1]
+            regexp = labels_to_dns([deescape_text(regexp)])[:-1]
+            replacement = labels_to_dns(name_to_labels(replacement))
+
+            data = u16_to_bytes(order) + u16_to_bytes(preference) + flags + service + regexp + replacement
+            out.write(make_record(name, RR_TYPE_NAPTR, loc, ttl, ttd, data))
 
         elif rtype == ":":
             # raw record
