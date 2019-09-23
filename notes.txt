@@ -130,6 +130,7 @@ NAPTR:
 
 CAA:
     8bit flags (RFC6844 defines the values 128 and 0, where 128 means critical)
+    8bit tag length
     text string for tag (US-ASCII only, should be between 1 and 15 characters long, and should only be alpha-numeric, canonically lower case)
     n-byte binary blob, but canonically a text string. Interpretation depends on the 'tag'.
 

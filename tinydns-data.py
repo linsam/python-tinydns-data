@@ -52,6 +52,9 @@ def u_to_bytes(u, bits):
     res.reverse()
     return bytes(res)
 
+def u8_to_bytes(u8):
+    return u_to_bytes(u8, 8)
+
 def u16_to_bytes(u16):
     return u_to_bytes(u16, 16)
 
@@ -425,6 +428,28 @@ with open("data") as data:
 
             data = u16_to_bytes(order) + u16_to_bytes(preference) + flags + service + regexp + replacement
             out.write(make_record(name, RR_TYPE_NAPTR, loc, ttl, ttd, data))
+        elif rtype == "c":
+            # CAA record
+
+            defaults = [None, "0", "", "", default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            flag = int(fields[1])
+            tag = fields[2]
+            value = fields[3]
+            ttl = int(fields[4])
+            ttd = int(fields[5])
+            loc = fields[6]
+
+            # Tag needs to include length
+            tag = labels_to_dns([deescape_text(tag)])[:-1]
+            # Value does _NOT_ include length
+            value = deescape_text(value)
+
+            data = u8_to_bytes(flag) + tag + value
+            out.write(make_record(name, RR_TYPE_CAA, loc, ttl, ttd, data))
 
         elif rtype == ":":
             # raw record
