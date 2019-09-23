@@ -21,7 +21,15 @@ RR_TYPE_PTR = 12
 RR_TYPE_MX = 15
 RR_TYPE_TXT = 16
 RR_TYPE_AAAA = 28
+RR_TYPE_SRV = 33
+RR_TYPE_NAPTR = 35
+RR_TYPE_CERT = 37
+RR_TYPE_DS = 43
+RR_TYPE_SSHFP = 44
+RR_TYPE_TLSA = 52
+RR_TYPE_OPENPGPKEY = 61
 RR_TYPE_AXFR = 252
+RR_TYPE_CAA = 257
 
 def ipv4_to_u32(ipv4):
     parts = ipv4.split('.')
@@ -366,6 +374,33 @@ with open("data") as data:
                 text = text[127:]
             data = labels_to_dns(strlist)[:-1] # chop off the trailing NULL label, shouldn't be in TXT records
             out.write(make_record(name, RR_TYPE_TXT, loc, ttl, ttd, data))
+        elif rtype == "S":
+            # SRV record
+
+            defaults = [None, "", "", None, "1", "0", default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            address = fields[1]
+            server = fields[2]
+            port = int(fields[3])
+            priority = int(fields[4])
+            weight = int(fields[5])
+            ttl = int(fields[6])
+            ttd = int(fields[7])
+            loc = fields[8]
+
+            # SRV record
+            lserver = labels_to_dns(name_to_labels(server))
+            data = u16_to_bytes(priority) + u16_to_bytes(weight) + u16_to_bytes(port) + lserver
+            out.write(make_record(name, RR_TYPE_SRV, loc, ttl, ttd, data))
+            # TODO: support IPv6?
+            if address != "":
+                # A record
+                data = u32_to_bytes(ipv4_to_u32(address))
+                out.write(make_record(server, RR_TYPE_A, loc, ttl, ttd, data))
+
         elif rtype == ":":
             # raw record
 
