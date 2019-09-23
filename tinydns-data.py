@@ -450,6 +450,25 @@ with open("data") as data:
 
             data = u8_to_bytes(flag) + tag + value
             out.write(make_record(name, RR_TYPE_CAA, loc, ttl, ttd, data))
+        elif rtype == 't':
+            # TLSA record
+
+            defaults = [None, "", "", "", "", default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            usage = int(fields[1])
+            selector = int(fields[2])
+            match_type = int(fields[3])
+            cert_data = fields[4]
+            ttl = int(fields[5])
+            ttd = int(fields[6])
+            loc = fields[7]
+
+            cert_data = codecs.decode(cert_data, 'hex')
+            data = u8_to_bytes(usage) + u8_to_bytes(selector) + u8_to_bytes(match_type) + cert_data
+            out.write(make_record(name, RR_TYPE_TLSA, loc, ttl, ttd, data))
 
         elif rtype == ":":
             # raw record
