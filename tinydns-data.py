@@ -467,9 +467,29 @@ with open("data") as data:
             loc = fields[7]
 
             cert_data = codecs.decode(cert_data, 'hex')
+
             data = u8_to_bytes(usage) + u8_to_bytes(selector) + u8_to_bytes(match_type) + cert_data
             out.write(make_record(name, RR_TYPE_TLSA, loc, ttl, ttd, data))
+        elif rtype == 'd':
+            # DS record
 
+            defaults = [None, "", "", "", "", default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            tag = int(fields[1])
+            algorithm = int(fields[2])
+            digest_type = int(fields[3])
+            digest_data = fields[4]
+            ttl = int(fields[5])
+            ttd = int(fields[6])
+            loc = fields[7]
+
+            digest_data = codecs.decode(digest_data, 'hex')
+
+            data = u16_to_bytes(tag) + u8_to_bytes(algorithm) + u8_to_bytes(digest_type) + digest_data
+            out.write(make_record(name, RR_TYPE_DS, loc, ttl, ttd, data))
         elif rtype == ":":
             # raw record
 
