@@ -490,6 +490,25 @@ with open("data") as data:
 
             data = u16_to_bytes(tag) + u8_to_bytes(algorithm) + u8_to_bytes(digest_type) + digest_data
             out.write(make_record(name, RR_TYPE_DS, loc, ttl, ttd, data))
+        elif rtype == 's':
+            # SSHFP record
+
+            defaults = [None, None, None, "", default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            algorithm = int(fields[1])
+            fingerprint_type = int(fields[2])
+            fingerprint_data = fields[3]
+            ttl = int(fields[4])
+            ttd = int(fields[5])
+            loc = fields[6]
+
+            fingerprint_data = codecs.decode(fingerprint_data, 'hex')
+
+            data = u8_to_bytes(algorithm) + u8_to_bytes(fingerprint_type) + fingerprint_data
+            out.write(make_record(name, RR_TYPE_SSHFP, loc, ttl, ttd, data))
         elif rtype == ":":
             # raw record
 

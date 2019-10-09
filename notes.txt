@@ -94,6 +94,11 @@ DS: RFC 3658
     8bit digest type
     n-byte digest
 
+SSHFP: RFC 4255, 6594, 7479
+    8bit algorithm (1=rsa, 2=dss (dsa?), 3=ecdsa, 4=ed25519)
+    8bit fingerprint type (1=sha-1, 2=sha2-256)
+    n-byte fingerprint
+
 
 CDB format
 ==========

@@ -34,6 +34,7 @@ that understands the 'standard' cdb text representation, such as tinycdb's
 * CAA
 * TLSA
 * DS
+* SSHFP
 * any other format specified raw
 
 See the "File Format" section at the bottom for details.
@@ -233,6 +234,14 @@ the first character of the line denotes the type:
     field 5: ttl
     field 6: ttd
     field 7: loc
+ s - SSHFP record
+    field 0: domain name
+    field 1: algorithm
+    field 2: fingerprint type
+    field 3: fingerprint data as hexadecimal
+    field 4: ttl
+    field 5: ttd
+    field 6: loc
  
 To do fancy things like hidden primary but still report the primary, use a Z record for the SOA, then & records for the NS that are "visible" (not hidden). Even though & is usually for delegation, it isn't when there is an SOA.
 
