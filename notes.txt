@@ -1,3 +1,17 @@
+Synopsis:
+
+    ./tinydns-data.py | cdb -c data.cdb
+
+or
+
+    ./tinydns-data.py | cdbmake data.cdb data.cdb.tmp
+
+
+Requirements:
+python3.x (tested on Python 3.6.8)
+tinycdb (for the cdb executable) or freecdb (for the cdbmake executable) (mostly tested with tinycdb 0.78 on Ubuntu 18.04)
+
+
 Project Rationale: Of the format's I (the original author) have used to
 represent DNS data, DJB's format for tinydns has been the most concise and
 easiest to edit.  Being able to specify forward and reverse data in a single
@@ -41,8 +55,9 @@ likelihood of data leakage or internal compromise when externally attacked)
 
 Since this means the tinydns format can still be useful in a modern world, I
 would like to continue using the format with the more modern servers. However,
-finding a patched version of tinydns-data that does what you want can be
-difficult, and tweaking the format processing code can be interesting.
+finding a patched version of tinydns-data (the program that converts your list
+of DNS records into the CDB file) that does what you want can be difficult,
+and tweaking the format processing code can be interesting.
 Licensing is also a bit of a concern. So, I thought, why not do my own
 implementation in python that isn't based on the orignal code (just the
 original behaviour, and observed behaviour of some of the patched versions
