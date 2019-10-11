@@ -74,6 +74,10 @@ def name_to_labels(name):
 def labels_to_dns(labels):
     # TODO: Handle unicde to punicode or whatever
     res = []
+    if len(labels[-1]) == 0:
+        # Allow optional trailing NULL label (e.g. a name ending in a '.' from
+        # name_to_labels()), we'll add the trailing NULL back at the end.
+        labels = labels[:-1]
     for part in labels:
         if isinstance(part, str):
             p = part.encode('ascii')
