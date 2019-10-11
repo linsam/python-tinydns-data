@@ -68,6 +68,8 @@ def u64_to_bytes(u64):
 #out.write(bytes(u32_to_bytes(ipv4_to_u32(address))))
 
 def name_to_labels(name):
+    if name.endswith('.'):
+        name = name[:-1]
     parts = name.split('.')
     return parts
 
@@ -77,6 +79,8 @@ def labels_to_dns(labels):
     if len(labels[-1]) == 0:
         # Allow optional trailing NULL label (e.g. a name ending in a '.' from
         # name_to_labels()), we'll add the trailing NULL back at the end.
+        # Actually, name_to_labels already strips that, but other things might
+        # not. Also, this fixes the special case of just the root label.
         labels = labels[:-1]
     for part in labels:
         if isinstance(part, str):
