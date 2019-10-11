@@ -140,11 +140,10 @@ def make_record(name, type_, loc, ttl, ttd, data):
     return record
 
 
-with open("data") as data:
-    for line in data:
+def processLine(line):
         line = line.rstrip()
         if len(line) == 0 or line[0] == '#':
-            continue
+            return
         rtype = line[0]
         line = line[1:]
         if rtype == '+':
@@ -217,7 +216,7 @@ with open("data") as data:
             out.write(make_record(rname, RR_TYPE_PTR, loc, ttl, ttd, data))
         elif rtype == '-':
             # Disabled A record
-            continue
+            return
         elif rtype == '^':
             # PTR
             defaults = [None, None, default_TTL, "0", None]
@@ -558,6 +557,16 @@ with open("data") as data:
 
         else:
             raise Exception("Unknown record type '{}'".format(rtype))
+
+with open("data") as data:
+    lineno = 0
+    for line in data:
+        lineno += 1
+        try:
+            processLine(line)
+        except:
+            print("Error encountered while processing input line {}:".format(lineno), file=sys.stderr)
+            raise
 
 # Finally, after the last record is an extra newline
 out.write(b'\n')
