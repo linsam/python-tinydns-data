@@ -147,6 +147,43 @@ def make_record(name, type_, loc, ttl, ttd, data):
     record = "+{},{}:".format(klen,vlen).encode('ascii') + key + b'->' + value + bytes((0x0a,))
     return record
 
+delegates4 = []
+delegates6 = []
+
+def getSubDelegates4(address):
+    results = []
+    for delegation in delegates4:
+        range_, target, octets = delegation
+        start, end = range_
+        if start <= address and address <= end:
+            results.append((target, octets))
+    return results
+
+def getSubDelegates6(address):
+    results = []
+    for delegation in delegates6:
+        range_, target, octets = delegation
+        start, end = range_
+        if start <= address and address <= end:
+            results += (target, octets)
+    return results
+
+def makeReverseRecords4(address, target, loc, ttl, ttd):
+    parts = address.split('.')
+    rparts = list(reversed(parts))
+    i_address = (int(parts[0]) << 24) + (int(parts[1]) << 16) + (int(parts[2]) << 8) + (int(parts[3]))
+    data = labels_to_dns(name_to_labels(target))
+
+    # do any sub-delegation formats (e.g. DeGroot, RFC2317))
+    did_delegate = False
+    for base, octets in getSubDelegates4(i_address):
+        rname = ".".join(rparts[:octets] + [base])
+        out.write(make_record(rname, RR_TYPE_PTR, loc, ttl, ttd, data))
+        did_delegate = True
+    if not did_delegate:
+        # Do the normal record if we didn't do anything special
+        rname = ".".join(rparts + ['in-addr','arpa'])
+        out.write(make_record(rname, RR_TYPE_PTR, loc, ttl, ttd, data))
 
 def processLine(line):
         line = line.rstrip()
@@ -194,9 +231,7 @@ def processLine(line):
             data = u32_to_bytes(ipv4_to_u32(address))
             out.write(make_record(name, RR_TYPE_A, loc, ttl, ttd, data))
             # Next, the PTR record
-            rname = ".".join(list(reversed(address.split('.'))) + ['in-addr','arpa'])
-            data = labels_to_dns(name_to_labels(name))
-            out.write(make_record(rname, RR_TYPE_PTR, loc, ttl, ttd, data))
+            makeReverseRecords4(address, name, loc, ttl, ttd)
         elif rtype == '6':
             # IPv6 address with PTR
             defaults = [None, None, default_TTL, "0", None]
@@ -537,6 +572,65 @@ def processLine(line):
 
             data = deescape_text(text)
             out.write(make_record(name, rrtype, loc, ttl, ttd, data))
+        elif rtype == '/':
+            # Sub-delegation type; modifies PTR generation and optionally
+            # creates appropriate CNAME, NS and the NS's A records
+            defaults = [None, None, "", "", default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            range_ = fields[1]
+            nsname = fields[2]
+            nsaddr = fields[3]
+            ttl = int(fields[4])
+            ttd = int(fields[5])
+            loc = fields[6]
+
+            if '/' in range_:
+                # cidr
+                base, prefix = range_.split('/')
+                prefix = int(prefix)
+                if not ( 24 < prefix and prefix < 32):
+                    raise Exception("only prefixes between 24 and 32 make sense")
+                parts = base.split('.')
+                if len(parts) != 4:
+                    raise Exception("Malformed IP address in field 1")
+                addr = (int(parts[0]) << 24) | (int(parts[1]) << 16) | (int(parts[2]) << 8) | int(parts[3])
+                mask = (1 << (32 - prefix)) - 1
+                start = addr & ~mask
+                end = addr | mask
+            elif '-' in range_:
+                # plain range
+                parts = range_.split('.')
+                if len(parts) != 4:
+                    raise Exception("Malformed IP address in field 1")
+                lsb_start, lsb_end = parts[3].split('-')
+                start = (int(parts[0]) << 24) | (int(parts[1]) << 16) | (int(parts[2]) << 8) | int(lsb_start)
+                end = (int(parts[0]) << 24) | (int(parts[1]) << 16) | (int(parts[2]) << 8) | int(lsb_end)
+            else:
+                raise Exceptino("Bad format for the range/cidr")
+            delegates4.append(((start,end), name, 1))
+            if len(nsname):
+                # Add CNAME records
+                for i in range(start, end + 1):
+                    rtarget = "{}.{}.".format(i & 0xff, name)
+                    rname = "{}.{}.{}.{}.in-addr.arpa.".format(
+                            i & 0xff,
+                            (i >> 8) & 0xff,
+                            (i >> 16) & 0xff,
+                            (i >> 24) & 0xff)
+                    data = labels_to_dns(name_to_labels(rtarget))
+                    out.write(make_record(rname, RR_TYPE_CNAME, loc, ttl, ttd, data))
+                if nsname != '.':
+                    # do NS record
+                    data = labels_to_dns(name_to_labels(nsname))
+                    out.write(make_record(name, RR_TYPE_NS, loc, ttl, ttd, data))
+                    if nsaddr != "":
+                        data = u32_to_bytes(ipv4_to_u32(nsaddr))
+                        out.write(make_record(nsname, RR_TYPE_A, loc, ttl, ttd, data))
+
+
         elif rtype == '%':
             defaults = [None, ""]
             givenfields = line.split(':')

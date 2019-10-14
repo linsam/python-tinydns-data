@@ -277,6 +277,46 @@ the first character of the line denotes the type:
     field 4: ttl
     field 5: ttd
     field 6: loc
+
+ / - subdelegation - modifies the way PTR records are generated for things
+ like the '=' and '6' intents. This version only changes '=' (IPv4 only).
+ Note: unlike other intent types, order matters for this one. All other
+ intents store their affects in the database so it doesn't matter the order
+ (for example, '%' intents can appear anywhere; the filtering is performed by
+ the server). This intent, however, modifies the generation of the records in
+ the first place. It only affects the records that come _after_ it. Note that
+ this is a bit contrary to djb recommendations
+ (http://cr.yp.to/djbdns/dot-arpa.html), but it does ease interoperability
+ with parents or children who run other servers.
+
+    field 0: domain name used for the base of auto-generated PTR records and
+    for the optional NS record. Also can generate an A record for the NS like
+    '&' records. If you are using 192.0.2.96/28, then for DeGroot format, use
+    something like 'subnet96.2.0.192.in-addr.arpa'. For commonly understood
+    RFC2317, use '96-111.2.0.192.in-addr.arpa'. For commonly understood
+    RFC4183, use '96-28.2.0.192.in-addr.apra'. For actual RFC2317, use
+    '96/28.2.0.192.in-addr.arpa'. Or anything you like, really, it doesn't
+    even have to be rooted in the 'arpa' domain and it will still work, as
+    covered in RFC2317.
+
+    field 1: range. This can be specified in CIDR: 192.0.2.96/28 or as a range:
+    192.0.2.96-11. Using a range is required if it isn't CIDR aligned, e.g.
+    192.0.2.5-10. This range specifies which auto-generated PTR records to
+    modify, and which CNAME records to generate for a parent zone.
+
+    field 2: target domain name for NS record. Leave blank to omit the NS
+    record and omit CNAME records. Set to '.' to omit the NS record but
+    include the CNAME records. Set to the actual delagation name server to get
+    NS record and CNAME records. If you truly want to delegate to '.', use an
+    additional '&' record.
+
+    field 3: IPv4 address of the NS server. leaving blank omits the A record
+    (just like the '&' intent). This field is ignored if field 2 is empty or '.'
+
+    field 4: TTL
+    field 5: TTD
+    field 6: Loc
+
  
 To do fancy things like hidden primary but still report the primary, use a Z record for the SOA, then & records for the NS that are "visible" (not hidden). Even though & is usually for delegation, it isn't when there is an SOA.
 
