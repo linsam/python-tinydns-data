@@ -117,13 +117,16 @@ resource records.
     should be defaults.
 
 the first character of the line denotes the type:
+
  % - location. Used subsequently for split-horizon stuffs.
+
     field 0: 2 byte location name
     field 1: IP prefix used to trigger the loc name. For example: 192.168.0 would work for 192.168.0.0/24
              can only handle /24, /16, and /8 networks.
              Parser note: each number between decimal points is parsed as an unsigned long and then truncated to 8bits, so 257 becomes 1 for example. The parser allows arbitrarily many dots, so for example '1.2.3.4.5.6.7' is valid for this field and will be put into the database, but of course, the dns server would never match it. Does offer a possibility for split horizon with ipv6, but as far as I know, no one ever did anything like that.
 
  Z - Complete SOA record.
+
     field 0: domain name
     field 1: target domain name (name of "primary" authoritative server)
     field 2: authoritative email as domain name
@@ -135,29 +138,40 @@ the first character of the line denotes the type:
     field 8: TTL
     field 9: TTD
     field 10: Loc
+
  & - NS record, adds A record
+
     field 0: domain name
     field 1: ipv4 address, dotted decimal (omit to skip making an A record)
     field 2: target domain name. (omit to autogenerate one as ns.DOMAIN_NAME, give a name without a dot to generate name.ns.DOMAIN_NAME)
     field 3: TTL
     field 4: TTD
     field 5: Loc
+
  . - Simple SOA record. Same format as &. Adds an NS and A record as well
+
  + - A record
+
     field 0: domain name
     field 1: ipv4 address, dotted decimal
     field 2: TTL
     field 3: TTD
     field 4: Loc
+
  = - A record. Same format as +. Adds a PTR in the reverse zone as well. (in-addr.arpa)
+
  3 - AAAA record (enhancement by 3rd party patch, in dbndns)
+
     field 0: domain name
     field 1: 16 byte IPv6 address represented by 32 characters hex
     field 2: TTL
     field 3: TTD
     field 4: Loc
+
  6 - AAAA record, same format as 3. Adds PTR in reverse zones as well (ip6.arpa and ip6.int)
+
  @ - MX record. Adds A record as well
+
     field 0: domain name
     field 1: ipv4 address, dotted decimal (omit to skip making an A record)
     field 2: target domain name
@@ -165,28 +179,38 @@ the first character of the line denotes the type:
     field 4: TTL
     field 5: TTD
     field 6: Loc
+
  ^ - PTR record
+
     field 0: domain name
     field 1: target domain name
     field 2: TTL
     field 3: TTD
     field 4: Loc
+
  C - CNAME record. Same format as PTR
+
  ' - TXT record, automatically split at 127 byte boundary
+
     field 0: domain name
     field 1: text data, bytes may be escaped with \ and a 3 digit octal number
     field 2: TTL
     field 3: TTD
     field 4: Loc
+
  : - Raw record, may not contain an AXFR, SOA, 0, NS, CNAME, PTR, nor MX record
+
     field 0: domain name
     field 1: record type
     field 2: data, processed like TXT (backslash escape bytes)
     field 3: TTL
     field 4: TTD
     field 5: Loc
+
  Addtional types from Alpine Linux's version:
+
  S - SRV record
+
     field 0: domain name
     field 1: ip
     field 2: target domain name
@@ -196,7 +220,9 @@ the first character of the line denotes the type:
     field 6: ttl
     field 7: ttd
     field 8: loc
+
  N - NAPTR
+
     field 0: domain name
     field 1: order
     field 2: pref
@@ -207,8 +233,11 @@ the first character of the line denotes the type:
     field 7: ttl
     field 8: ttd
     field 9: loc
+
  Additional types defined by us:
+
  c - CAA record
+
     field 0: domain name
     field 1: flag
     field 2: tag
@@ -216,7 +245,9 @@ the first character of the line denotes the type:
     field 4: ttl
     field 5: ttd
     field 6: loc
+
  t - TLSA record
+
     field 0: domain name
     field 1: certificate usage
     field 2: selector
@@ -225,7 +256,9 @@ the first character of the line denotes the type:
     field 5: ttl
     field 6: ttd
     field 7: loc
+
  d - DS record
+
     field 0: domain name
     field 1: key tag
     field 2: algorithm
@@ -234,7 +267,9 @@ the first character of the line denotes the type:
     field 5: ttl
     field 6: ttd
     field 7: loc
+
  s - SSHFP record
+
     field 0: domain name
     field 1: algorithm
     field 2: fingerprint type
