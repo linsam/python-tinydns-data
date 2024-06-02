@@ -283,30 +283,30 @@ the first character of the line denotes the type:
     field 0: domain name
     field 1: target domain name
     field 2: priority
-    field 3: params, a semicolon (';') separated list of key=value pairs. Keys
+    field 3: params, a space (' ') separated list of key=value pairs. Keys
 	     can be text (if known by this program) or integer. The '=' may be
-	     elided if there is no value for the key (value length=0) If the
-	     key is given as an integer, the value is parsed as raw data in the
-	     same style as text records (normal non-special characters or \ooo
-	     3 digit octal sequence) where special characters include ':', '\',
-	     and ';'.  Key's known by this program currently include
-	     'mandatory', 'alpn', 'no-default-alpn', 'port', 'ipv4hint', and
-	     'ipv6hint'.  Note that 'ech' is listed in the spec but it's
-	     contents are not yet defined, so this program currently doesn't
-	     accept that name.
+	     elided if there is no value for the key (value length=0). If the
+	     key is given as 'keyN' where N is a decimal integer, the number N
+	     is a possibly unknown-to-this-program key and the value is parsed
+	     as raw data in the same style as text records (normal non-special
+	     characters or \ooo 3 digit octal sequence) where special
+	     characters include ':', '\', and ' '. Known key names have their
+	     value parsed in key dependant ways, documented below. Key's known
+	     by this program currently include 'mandatory', 'alpn',
+	     'no-default-alpn', 'port', 'ipv4hint', and 'ipv6hint'.  Note that
+	     'ech' is listed in the spec but it's contents are not yet defined,
+	     so this program currently doesn't accept that name.
 
-	     - 'mandatory' takes a ',' separated list of key names or numbers.
+	     - 'mandatory' takes a ',' separated list of key names.
 	     - 'alpn' takes a ',' separated list of alpn-id's, using octal
-	       escaping for '\', ':', ',', and ';'
+	       escaping for '\', ':', ',', and ' '
 	     - 'no-default-alpn' has no value
-	     - 'port' takes an integer 0 to 65535
+	     - 'port' takes an integer 0 to 65535 or 0x0000 to 0xffff
 	     - 'ipv4hint' takes a regular format ipv4 address (4 dotted decimal
 	       numbers)
 	     - 'ipv6hint' takes an IPv6 address formatted like type '3' or '6'
 	       intents.
 
-	       TODO: RFC wireformat is space separated rather than semicolon or whatever. But it also forbids escaping in some places, which is unavoidable to our format. still, it's worth a think to see if we can support space separation to minimize conversion efforts.
-	       Also, they give a format for calling out the integer value of a key, which is 'keyN' where N is an unpadded decimal integer.
     field 4: ttl
     field 5: ttd
     field 6: loc

@@ -120,7 +120,7 @@ SVCB: RFC 9460
     65535 invalid key
 
 HTTPS: RFC 9460
-    same as SVCB, but perhaps warn if 'port' or 'no-default-alpn' is listed as a mandatory value (they already are for HTTP)
+    same as SVCB, but perhaps warn if 'port' or 'no-default-alpn' is listed as a mandatory value (HTTPS defines these as already mandatory, so explicitly specifying them is redundant and wastes space.)
 
 CDB format
 ==========
