@@ -28,6 +28,8 @@ RR_TYPE_DS = 43
 RR_TYPE_SSHFP = 44
 RR_TYPE_TLSA = 52
 RR_TYPE_OPENPGPKEY = 61
+RR_TYPE_SVCB = 64
+RR_TYPE_HTTPS = 65
 RR_TYPE_AXFR = 252
 RR_TYPE_CAA = 257
 
@@ -551,6 +553,121 @@ def processLine(line):
 
             data = u8_to_bytes(algorithm) + u8_to_bytes(fingerprint_type) + fingerprint_data
             out.write(make_record(name, RR_TYPE_SSHFP, loc, ttl, ttd, data))
+        elif rtype == 'V' or rtype == 'H':
+            # SVCB record
+
+            defaults = [None, None, "0", "", default_TTL, "0", None]
+            givenfields = line.split(':')
+            fields = overlay(givenfields, defaults)
+
+            name = fields[0]
+            destname = fields[1]
+            priority = int(fields[2])
+            params = fields[3]
+            ttl = int(fields[4])
+            ttd = int(fields[5])
+            loc = fields[6]
+
+            if priority==0 and len(params) != 0:
+                # TODO: Warn? There is no param in current spec where this is valid. Can't make it an error since future specs could allow it
+                pass
+            svcbkeys = {
+                "mandatory": 0,
+                "alpn": 1,
+                "no-default-alpn": 2,
+                "port": 3,
+                "ipv4hint": 4,
+                "ipv6hint": 6,
+                }
+            def get_key_num(key: str) -> int:
+                if key in svcbkeys:
+                    return svcbkeys[key]
+                elif key.startswith("key"):
+                    return int(key[3:],10)
+                else:
+                    raise Exception("Unknown SVCB param {}".format(key))
+            paramset = {}
+            for param in params.split(' '):
+                if len(param) == 0:
+                    # empty params string or multiple spaces
+                    continue
+                if '=' in param:
+                    keyname,value = param.split('=',1)
+                else:
+                    keyname,value = param, "" # Could do none if it becomes important do differentiate between an empty assignment and no assignment
+                key = get_key_num(keyname)
+                if key in paramset:
+                    # TODO: show line number or something?
+                    raise Exception("Duplicate param {}".format(keyname))
+                # TODO: Maybe have a lookup table of functions?
+                if keyname == "mandatory":
+                    subkeynames = value.split(',')
+                    subvalue = []
+                    for subkeyname in subkeynames:
+                        if subkeyname in svcbkeys:
+                            subvalue.append(svcbkeys[subkeyname])
+                        elif subkeyname.startswith("key"):
+                            subvalue.append(int(subkeyname[3:],10))
+                        else:
+                            raise Exception("Unknown SVCB param in mandatory section: {}".format(subkeyname))
+                    subvalue.sort()
+                    if subvalue[0] == 0:
+                        # See RFC 9460 §8
+                        raise Exception("The 'mandatory' key must not appear in it's own list (either as mandatory or as 'key0')")
+                    subvalue = b''.join(map(u16_to_bytes, subvalue))
+                    paramset[key] = subvalue
+                elif keyname == "alpn":
+                    subkeynames = value.split(',')
+                    subvalue = []
+                    for subkeyname in subkeynames:
+                        # TODO: process escapes
+                        # TODO: check lengths
+                        subkeyname = subkeyname.encode("ascii")
+                        subvalue.append(u8_to_bytes(len(subkeyname)))
+                        subvalue.append(subkeyname)
+                    subvalue = b''.join(subvalue)
+                    paramset[key] = subvalue
+                elif keyname == "no-default-alpn":
+                    if len(value):
+                        raise Exception("no-default-alpn takes no value; but given {}", value)
+                    paramset[key] = b''
+                elif keyname == "port":
+                    value = int(value)
+                    paramset[key] = u16_to_bytes(value)
+                elif keyname == "ipv4hint":
+                    values=[]
+                    value = value.split(',')
+                    for subvalue in value:
+                        values.append(u32_to_bytes(ipv4_to_u32(subvalue)))
+                    paramset[key] = b''.join(values)
+                elif keyname == "ipv6hint":
+                    values=[]
+                    value = value.split(',')
+                    for subvalue in value:
+                        data = codecs.decode(subvalue, 'hex')
+                        if len(data) != 16:
+                            raise Exception("hex isn't 16 bytes IPv6 address")
+                        values.append(data)
+                    paramset[key] = b''.join(values)
+                elif keyname.startswith("key"):
+                    raise Exception("TODO: {}".format(keyname))
+                else:
+                    raise Exception("how did you get here? This should have been filtered prior")
+
+            paramdata = []
+            # Spec requires storage in ascending order by key
+            paramkeys = sorted(paramset.keys())
+            for key in paramkeys:
+                value = paramset[key]
+                paramdata.extend((u16_to_bytes(key), u16_to_bytes(len(value)), value))
+
+            data = u16_to_bytes(priority) + labels_to_dns(name_to_labels(destname)) + b''.join(paramdata)
+            # TODO: Verify that all mandatory fields given are actually present in the record, or else it must be rejected by clients.
+            if rtype == 'V':
+                out.write(make_record(name, RR_TYPE_SVCB, loc, ttl, ttd, data))
+            elif rtype == 'H':
+                out.write(make_record(name, RR_TYPE_HTTPS, loc, ttl, ttd, data))
+
         elif rtype == ":":
             # raw record
 

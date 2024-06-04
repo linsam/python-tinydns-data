@@ -302,10 +302,10 @@ the first character of the line denotes the type:
 	       escaping for '\', ':', ',', and ' '
 	     - 'no-default-alpn' has no value
 	     - 'port' takes an integer 0 to 65535 or 0x0000 to 0xffff
-	     - 'ipv4hint' takes a regular format ipv4 address (4 dotted decimal
-	       numbers)
-	     - 'ipv6hint' takes an IPv6 address formatted like type '3' or '6'
-	       intents.
+             - 'ipv4hint' takes a ',' separated list of regular format ipv4
+               address (4 dotted decimal numbers)
+             - 'ipv6hint' takes ',' separated list of IPv6 address formatted
+               like type '3' or '6' intents.
 
     field 4: ttl
     field 5: ttd
