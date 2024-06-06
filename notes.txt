@@ -26,6 +26,8 @@ types:
 33  SRV
 44  SSHFP
 52  TLSA
+64  SCVB
+65  HTTPS
 
 
 pseudo types:
@@ -99,6 +101,26 @@ SSHFP: RFC 4255, 6594, 7479
     8bit fingerprint type (1=sha-1, 2=sha2-256)
     n-byte fingerprint
 
+SVCB: RFC 9460
+    16bit priority (0 for alias mode, expect no svcparams)
+    domainname target (uncompressed) (may be the root domain '.', for alias, this indicates service doesn't exist; for service, means use owner domain as target)
+    n-byte data for SvcParams, TLV list, sorted by key:
+        16bit key
+	16bit length
+	n-byte value
+
+    keys:
+    0->mandatory (sorted array of 16bit numbers)
+    1->alpn (list of 8bit length, N-byte text)
+    2->no-default-alpn (no value; requires alpn also be specified)
+    3->port (16bit value)
+    4->ipv4hint (array of 32bit addresses)
+    5->ech
+    6->ipv6hint (array of 128bit addresses)
+    65535 invalid key
+
+HTTPS: RFC 9460
+    same as SVCB, but perhaps warn if 'port' or 'no-default-alpn' is listed as a mandatory value (HTTPS defines these as already mandatory, so explicitly specifying them is redundant and wastes space.)
 
 CDB format
 ==========
