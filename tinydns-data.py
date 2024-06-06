@@ -626,8 +626,7 @@ def processLine(line):
                     subkeynames = value.split(',')
                     subvalue = []
                     for subkeyname in subkeynames:
-                        # TODO: process escapes
-                        subkeyname = subkeyname.encode("ascii")
+                        subkeyname = deescape_text(subkeyname)
                         if len(subkeyname) > 255:
                             raise Exception("Value too long: {}".format(subkeyname))
                         subvalue.append(u8_to_bytes(len(subkeyname)))
@@ -657,7 +656,8 @@ def processLine(line):
                         values.append(data)
                     paramset[key] = b''.join(values)
                 elif keyname.startswith("key"):
-                    raise Exception("TODO: {}".format(keyname))
+                    keynum = int(keyname[3:], 10)
+                    paramset[key] = deescape_text(value)
                 else:
                     raise Exception("how did you get here? This should have been filtered prior")
 
