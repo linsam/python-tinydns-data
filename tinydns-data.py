@@ -46,6 +46,8 @@ def ipv4_to_u32(ipv4):
 def u_to_bytes(u, bits):
     if bits & 0x7:
         raise Exception("Extra bits; not byte aligned")
+    if u >= 2**bits:
+        raise Exception("Given number {} doesn't fit in {} bits".format(u, bits))
     byte_count = bits >> 3
     res = []
     for i in range(byte_count):
@@ -587,6 +589,7 @@ def processLine(line):
                 else:
                     raise Exception("Unknown SVCB param {}".format(key))
             paramset = {}
+            mandatories = []
             for param in params.split(' '):
                 if len(param) == 0:
                     # empty params string or multiple spaces
@@ -597,7 +600,6 @@ def processLine(line):
                     keyname,value = param, "" # Could do none if it becomes important do differentiate between an empty assignment and no assignment
                 key = get_key_num(keyname)
                 if key in paramset:
-                    # TODO: show line number or something?
                     raise Exception("Duplicate param {}".format(keyname))
                 # TODO: Maybe have a lookup table of functions?
                 if keyname == "mandatory":
@@ -614,6 +616,10 @@ def processLine(line):
                     if subvalue[0] == 0:
                         # See RFC 9460 §8
                         raise Exception("The 'mandatory' key must not appear in it's own list (either as mandatory or as 'key0')")
+
+                    # Save the set for final record validation
+                    mandatories = subvalue
+
                     subvalue = b''.join(map(u16_to_bytes, subvalue))
                     paramset[key] = subvalue
                 elif keyname == "alpn":
@@ -621,8 +627,9 @@ def processLine(line):
                     subvalue = []
                     for subkeyname in subkeynames:
                         # TODO: process escapes
-                        # TODO: check lengths
                         subkeyname = subkeyname.encode("ascii")
+                        if len(subkeyname) > 255:
+                            raise Exception("Value too long: {}".format(subkeyname))
                         subvalue.append(u8_to_bytes(len(subkeyname)))
                         subvalue.append(subkeyname)
                     subvalue = b''.join(subvalue)
@@ -662,7 +669,20 @@ def processLine(line):
                 paramdata.extend((u16_to_bytes(key), u16_to_bytes(len(value)), value))
 
             data = u16_to_bytes(priority) + labels_to_dns(name_to_labels(destname)) + b''.join(paramdata)
-            # TODO: Verify that all mandatory fields given are actually present in the record, or else it must be rejected by clients.
+            # Verify that all mandatory fields are actually present
+            for key in mandatories:
+                if not key in paramkeys:
+                    keyname = None
+                    for k,v in svcbkeys.items():
+                        if key == v:
+                            keyname = k
+                            break
+                    if keyname:
+                        keyname = "key{} ({})".format(key, keyname)
+                    else:
+                        keyname = "key{}".format(key)
+                    raise Exception("{} listed as mandatory, but is not present in record".format(keyname))
+                # TODO: Warn if rtype == 'H' and we found 'port' or 'no-default-alpn' listed in mandatory? These are 'SHOULD NOT' in the spec RFC9460§9¶5 and RFC9640§8¶8
             if rtype == 'V':
                 out.write(make_record(name, RR_TYPE_SVCB, loc, ttl, ttd, data))
             elif rtype == 'H':
